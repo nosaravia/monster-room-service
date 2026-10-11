@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Monster Hotel: Room Service</title>
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="favicon.png">
+<meta name="apple-mobile-web-app-title" content="Room Service">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#2B1838">
 <script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&display=swap" rel="stylesheet">
 <style>
@@ -397,6 +404,19 @@ const keys = {};
 window.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
 window.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
 
+// ---- Visit counter (GoatCounter) ----
+// Only runs on your GitHub Page, never on CrazyGames (their dashboard has the stats there).
+const COUNTER_SITE = "monsterhotel";
+if (location.hostname.endsWith("github.io")) {
+  const g = document.createElement("script");
+  g.async = true; g.src = "https://gc.zgo.at/count.js";
+  g.dataset.goatcounter = "https://" + COUNTER_SITE + ".goatcounter.com/count";
+  document.head.appendChild(g);
+}
+function track(path, title) {
+  try { if (window.goatcounter && window.goatcounter.count) window.goatcounter.count({ path, title, event: true }); } catch (e) {}
+}
+
 // ---- CrazyGames SDK (ads + gameplay events) ----
 // Ads only run on CrazyGames, or in test mode (add ?useLocalSdk=true to the address).
 let SDK = null;
@@ -681,6 +701,7 @@ doubleBtn.addEventListener("click", () => {
 });
 function newRun() {
   reset(); banked = 0; revived = false; doubled = false; runsPlayed++; hideAdBtns(); go();
+  track("room-service-run", "Room Service: run started");
 }
 playBtn.addEventListener("click", () => {
   initAudio();
