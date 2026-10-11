@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Monster Hotel: Room Service</title>
+<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root { --plum:#2B1838; --brass:#E0A93B; --cream:#F6E7C8; --mint:#7FE0B0; }
+  html, body {
+    margin:0; height:100%; overflow:hidden; background:var(--plum);
+    font-family:"Fredoka","Trebuchet MS",system-ui,sans-serif; color:var(--cream);
+    touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none;
+  }
+  canvas { display:block; width:100vw; height:100vh; height:100dvh; }
+  #hud {
+    position:fixed; top:env(safe-area-inset-top,0px); left:0; right:0;
+    display:flex; justify-content:space-between; align-items:center;
+    padding:12px 16px; font-size:22px; font-weight:700; pointer-events:none;
+  }
+  #right { display:flex; align-items:center; gap:12px; }
+  #pauseBtn {
+    pointer-events:auto; width:40px; height:40px; padding:7px; background:rgba(0,0,0,.25);
+    border:2px solid var(--cream); border-radius:50%; color:var(--cream); cursor:pointer;
+  }
+  #pauseBtn svg, .toggle svg { width:100%; height:100%; display:block; }
+  .toggles { display:flex; gap:10px; margin-top:14px; }
+  .toggle {
+    font:inherit; font-size:15px; font-weight:700; display:flex; align-items:center; gap:6px;
+    padding:6px 12px; border-radius:20px; border:2px solid var(--cream); background:rgba(0,0,0,.25);
+    color:var(--cream); cursor:pointer;
+  }
+  .toggle svg { width:20px; height:20px; }
+  .toggle.off { opacity:.5; text-decoration:line-through; }
+  #overlay {
+    position:fixed; inset:0; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; text-align:center; background:rgba(43,24,56,.85); padding:24px;
+  }
+  #overlay.hidden { display:none; }
+  #overlay h1 { font-size:40px; margin:0 0 4px; color:var(--brass); line-height:1.1; }
+  #overlay p { font-size:18px; margin:8px 0; max-width:320px; line-height:1.4; }
+  #stats { color:var(--mint); }
+  .ico { width:26px; height:26px; vertical-align:-6px; }
+  #hearts .ico { width:28px; height:28px; margin-right:2px; }
+  .row img { width:36px; height:36px; }
+  .skin img { width:56px; height:56px; display:block; margin:0 auto 2px; }
+  .skin .n { font-size:15px; font-weight:700; display:block; }
+  .skin .c .ico { width:16px; height:16px; display:inline; margin:0; vertical-align:-3px; }
+  .item button .ico { width:18px; height:18px; vertical-align:-3px; }
+  #legend { margin:10px 0 4px; display:grid; gap:8px; }
+  .row { display:flex; align-items:center; gap:8px; font-size:28px;
+         background:rgba(0,0,0,.25); border-radius:14px; padding:6px 14px; }
+  .row .lbl { font-size:17px; font-weight:700; width:56px; text-align:left; }
+  .row.catch .lbl { color:var(--mint); }
+  .row.avoid { border:2px solid #E04848; }
+  .row.avoid .lbl { color:#FF7070; }
+  .row.bonus .lbl { color:var(--brass); }
+  #playBtn {
+    margin-top:20px; font:inherit; font-size:24px; font-weight:700; padding:14px 32px;
+    border:3px solid var(--cream); border-radius:40px; background:var(--brass);
+    color:var(--plum); cursor:pointer;
+  }
+  .btns { display:flex; gap:12px; margin-top:20px; }
+  .btns #playBtn { margin-top:0; }
+  .ghost {
+    font:inherit; font-size:20px; font-weight:700; padding:12px 26px; border-radius:40px;
+    border:3px solid var(--brass); background:transparent; color:var(--brass); cursor:pointer;
+  }
+  .hidden { display:none !important; }
+  .adBtns { display:flex; flex-direction:column; gap:10px; margin-top:16px; width:100%; max-width:300px; }
+  .adBtn {
+    font:inherit; font-size:18px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:8px;
+    padding:12px 16px; border-radius:30px; border:3px solid var(--cream); background:var(--mint);
+    color:var(--plum); cursor:pointer;
+  }
+  .adBtn svg { width:20px; height:20px; flex-shrink:0; }
+  #playBtn, .ghost { white-space:nowrap; }
+  .adBtn:disabled { opacity:.5; cursor:default; }
+  .adBtn:focus-visible { outline:3px solid var(--brass); outline-offset:4px; }
+  .item button.adSmall { background:var(--mint); }
+  #shop {
+    position:fixed; inset:0; background:var(--plum); overflow-y:auto; text-align:center;
+    padding:calc(env(safe-area-inset-top,0px) + 20px) 16px calc(env(safe-area-inset-bottom,0px) + 24px);
+  }
+  #shop h2 { color:var(--brass); font-size:32px; margin:0; }
+  #shopBank { font-size:22px; font-weight:700; margin:6px 0 16px; }
+  .shopHead { font-size:18px; color:var(--mint); margin:18px 0 8px; }
+  .item {
+    max-width:420px; margin:0 auto 10px; display:flex; align-items:center; gap:12px;
+    background:rgba(0,0,0,.25); border-radius:16px; padding:12px 14px; text-align:left;
+  }
+  .item .info { flex:1; }
+  .item .name { font-size:19px; font-weight:700; }
+  .item .desc { font-size:14px; opacity:.85; line-height:1.3; }
+  .item .pips { color:var(--brass); letter-spacing:2px; font-size:14px; }
+  .item button {
+    font:inherit; font-size:16px; font-weight:700; padding:8px 14px; border-radius:20px;
+    border:2px solid var(--cream); background:var(--brass); color:var(--plum); cursor:pointer; white-space:nowrap;
+  }
+  .item button:disabled { background:transparent; color:var(--cream); opacity:.5; cursor:default; }
+  .skins { max-width:420px; margin:0 auto; display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  .skin {
+    background:rgba(0,0,0,.25); border-radius:16px; padding:10px 6px; border:2px solid transparent;
+    font:inherit; color:var(--cream); cursor:pointer;
+  }
+  .skin .e { font-size:44px; display:block; }
+  .skin .c { font-size:14px; font-weight:700; }
+  .skin.on { border-color:var(--mint); }
+  .skin.locked .e { filter:grayscale(1) brightness(.6); }
+  #shopClose { margin-top:20px; }
+  #playBtn:focus-visible, #pauseBtn:focus-visible, .toggle:focus-visible, .ghost:focus-visible, .item button:focus-visible, .skin:focus-visible { outline:3px solid var(--mint); outline-offset:4px; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="hud">
+  <span id="hearts"></span>
+  <span id="right"><span id="coins"></span><button id="pauseBtn" class="hidden" aria-label="Pause"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1.5" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1.5" fill="currentColor"/></svg></button></span>
+</div>
+<div id="overlay">
+  <h1 id="title">Room Service</h1>
+  <p id="msg">Drag to move. Catch orders in a row to build a combo.</p>
+  <div id="legend"></div>
+  <p id="stats"></p>
+  <div class="adBtns">
+    <button id="reviveBtn" class="adBtn hidden"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z" fill="currentColor"/></svg><span>Watch ad: Revive</span></button>
+    <button id="doubleBtn" class="adBtn hidden"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z" fill="currentColor"/></svg><span id="doubleTxt">Watch ad: double coins</span></button>
+  </div>
+  <div class="btns"><button id="playBtn">Play</button><button id="shopBtn" class="ghost">Shop</button></div>
+  <div class="toggles">
+    <button id="soundBtn" class="toggle"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9h4l5-4v14l-5-4H3z" fill="currentColor"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg><span>Sound</span></button>
+    <button id="musicBtn" class="toggle"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 17V5l11-2v12" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linejoin="round"/><circle cx="6.5" cy="17.5" r="3" fill="currentColor"/><circle cx="17.5" cy="15.5" r="3" fill="currentColor"/></svg><span>Music</span></button>
+  </div>
+</div>
+<div id="shop" class="hidden">
+  <h2>Hotel shop</h2>
+  <div id="shopBank"></div>
+  <div id="shopList"></div>
+  <button id="shopClose" class="ghost">Back</button>
+</div>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const $ = id => document.getElementById(id);
+const heartsEl = $("hearts"), coinsEl = $("coins"), overlay = $("overlay"), statsEl = $("stats");
+const titleEl = $("title"), msgEl = $("msg"), playBtn = $("playBtn"), pauseBtn = $("pauseBtn");
+const soundBtn = $("soundBtn"), musicBtn = $("musicBtn");
+const shopBtn = $("shopBtn"), shopEl = $("shop"), shopList = $("shopList");
+
+// ---- Easy-to-change settings ----
+const GOOD = ["donut","pizza","bag","key","cupcake","cookie"];
+const BAD = ["garlic","clock","mop"];
+const GOLD = "cloche";       // golden order
+const MAGNET = "magnet", SLOW = "hourglass";
+const START_HEARTS = 3;
+const START_SPEED = 190;     // pixels per second
+const START_SPAWN = 0.8;     // seconds between items
+const RAMP_EVERY = 15;       // seconds between difficulty bumps
+const COMBO_STEP = 5;        // catches needed per multiplier level
+const MAX_MULT = 5;
+const GOLD_CHANCE = 0.03;    // 3% of drops
+const POWER_CHANCE = 0.04;   // 4% of drops (after 8 seconds)
+const GOLD_VALUE = 10;       // golden order = 10x coins
+const MAGNET_TIME = 6, SLOW_TIME = 5;
+
+// ---- Shop (prices in coins) ----
+const UPGRADES = [
+  { id:"tray",   name:"Bigger tray",     desc:"Catch orders farther from your monster.", costs:[50,120,250,500,900] },
+  { id:"magnet", name:"Stronger magnet", desc:"Magnet lasts 1.5 seconds longer per level.", costs:[60,150,300,600,1000] },
+  { id:"heart",  name:"Extra heart",     desc:"Start every run with one more heart.", costs:[400,1200] }
+];
+const SKINS = [
+  { e:"gloop", name:"Gloop", cost:0 },   { e:"boo", name:"Boo", cost:200 },  { e:"inky", name:"Inky", cost:400 },
+  { e:"imp",   name:"Imp",   cost:700 }, { e:"zom", name:"Zom", cost:1000 }, { e:"vlad", name:"Vlad", cost:1500 }
+];
+
+// ---- Art: drawn in code (SVG), turned into crisp images ----
+const ART = {"gloop": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\" width=\"192\" height=\"192\"><path d=\"M10 56 C8 36 17 22 32 22 C47 22 56 36 54 56 C50 60 46 53 42 57 C38 61 34 54 30 58 C25 61 21 54 17 58 C14 59 11 58 10 56Z\" fill=\"#9B6BE0\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><path d=\"M18 36 C20 30 24 27 28 26\" fill=\"none\" stroke=\"#C7A6F5\" stroke-width=\"3\" stroke-linecap=\"round\"/><circle cx=\"32\" cy=\"38\" r=\"9\" fill=\"#fff\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><circle cx=\"33\" cy=\"39\" r=\"4.5\" fill=\"#2B1838\"/><circle cx=\"34\" cy=\"37\" r=\"1.6199999999999999\" fill=\"#fff\"/><path d=\"M26 50 Q32 54 38 50\" fill=\"none\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><g transform=\"rotate(0 32 17)\"><rect x=\"23\" y=\"12\" width=\"18\" height=\"10\" rx=\"2\" fill=\"#D9443A\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><rect x=\"23\" y=\"18\" width=\"18\" height=\"3\" fill=\"#E0A93B\"/><circle cx=\"32\" cy=\"11\" r=\"2\" fill=\"#E0A93B\"/></g></svg>", "boo": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\" width=\"192\" height=\"192\"><path d=\"M14 58 L14 34 C14 22 22 16 32 16 C42 16 50 22 50 34 L50 58 L44 53 L38 58 L32 53 L26 58 L20 53 Z\" fill=\"#F2EEF8\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><ellipse cx=\"25\" cy=\"34\" rx=\"3.5\" ry=\"5\" fill=\"#2B1838\"/><ellipse cx=\"39\" cy=\"34\" rx=\"3.5\" ry=\"5\" fill=\"#2B1838\"/><ellipse cx=\"32\" cy=\"45\" rx=\"4\" ry=\"5\" fill=\"#2B1838\"/><circle cx=\"20\" cy=\"41\" r=\"3\" fill=\"#F5A3C0\"/><circle cx=\"44\" cy=\"41\" r=\"3\" fill=\"#F5A3C0\"/><g transform=\"rotate(-10 32 12)\"><rect x=\"23\" y=\"7\" width=\"18\" height=\"10\" rx=\"2\" fill=\"#D9443A\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><rect x=\"23\" y=\"13\" width=\"18\" height=\"3\" fill=\"#E0A93B\"/><circle cx=\"32\" cy=\"6\" r=\"2\" fill=\"#E0A93B\"/></g></svg>", "inky": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\" width=\"192\" height=\"192\"><path d=\"M16 32 C16 20 24 14 32 14 C40 14 48 20 48 32 L48 42 C48 48 54 51 57 55 C51 58 46 55 44 51 C43 56 41 59 37 59 C35 55 34 52 32 51 C30 52 29 55 27 59 C23 59 21 56 20 51 C18 55 13 58 7 55 C10 51 16 48 16 42Z\" fill=\"#3FB8A8\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><circle cx=\"25\" cy=\"32\" r=\"6\" fill=\"#fff\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><circle cx=\"26\" cy=\"33\" r=\"3.0\" fill=\"#2B1838\"/><circle cx=\"27\" cy=\"31\" r=\"1.08\" fill=\"#fff\"/><circle cx=\"39\" cy=\"32\" r=\"6\" fill=\"#fff\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><circle cx=\"40\" cy=\"33\" r=\"3.0\" fill=\"#2B1838\"/><circle cx=\"41\" cy=\"31\" r=\"1.08\" fill=\"#fff\"/><path d=\"M28 42 Q32 45 36 42\" fill=\"none\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><circle cx=\"22\" cy=\"22\" r=\"2\" fill=\"#8FE3D6\"/><circle cx=\"27\" cy=\"19\" r=\"1.5\" fill=\"#8FE3D6\"/><g transform=\"rotate(8 32 10)\"><rect x=\"23\" y=\"5\" width=\"18\" height=\"10\" rx=\"2\" fill=\"#D9443A\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><rect x=\"23\" y=\"11\" width=\"18\" height=\"3\" fill=\"#E0A93B\"/><circle cx=\"32\" cy=\"4\" r=\"2\" fill=\"#E0A93B\"/></g></svg>", "imp": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\" width=\"192\" height=\"192\"><path d=\"M15 24 L11 8 L23 18Z M49 24 L53 8 L41 18Z\" fill=\"#F6E7C8\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><rect x=\"12\" y=\"18\" width=\"40\" height=\"40\" rx=\"18\" fill=\"#E2574C\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><circle cx=\"25\" cy=\"34\" r=\"5\" fill=\"#fff\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><circle cx=\"26\" cy=\"35\" r=\"2.5\" fill=\"#2B1838\"/><circle cx=\"27\" cy=\"33\" r=\"0.8999999999999999\" fill=\"#fff\"/><circle cx=\"39\" cy=\"34\" r=\"5\" fill=\"#fff\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><circle cx=\"40\" cy=\"35\" r=\"2.5\" fill=\"#2B1838\"/><circle cx=\"41\" cy=\"33\" r=\"0.8999999999999999\" fill=\"#fff\"/><path d=\"M22 45 Q32 53 42 45 Z\" fill=\"#2B1838\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><path d=\"M27 46 L29 50 L31 47Z\" fill=\"#fff\"/><path d=\"M19 28 L28 30 M45 28 L36 30\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><g transform=\"rotate(0 32 14)\"><rect x=\"23\" y=\"9\" width=\"18\" height=\"10\" rx=\"2\" fill=\"#D9443A\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><rect x=\"23\" y=\"15\" width=\"18\" height=\"3\" fill=\"#E0A93B\"/><circle cx=\"32\" cy=\"8\" r=\"2\" fill=\"#E0A93B\"/></g></svg>", "zom": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\" width=\"192\" height=\"192\"><rect x=\"13\" y=\"18\" width=\"38\" height=\"40\" rx=\"9\" fill=\"#8CC56B\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><path d=\"M13 30 L22 26 L30 30\" fill=\"none\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><path d=\"M18 22 L18 30 M15 24 L21 24 M15 28 L21 28\" stroke=\"#2B1838\" stroke-width=\"2\"/><circle cx=\"24\" cy=\"37\" r=\"7\" fill=\"#fff\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><circle cx=\"24\" cy=\"38\" r=\"3.5\" fill=\"#2B1838\"/><circle cx=\"25\" cy=\"36\" r=\"1.26\" fill=\"#fff\"/><circle cx=\"40\" cy=\"37\" r=\"4\" fill=\"#fff\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><circle cx=\"40\" cy=\"38\" r=\"1.8\" fill=\"#2B1838\"/><path d=\"M23 49 L41 49\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><path d=\"M27 47 L27 51 M32 47 L32 51 M37 47 L37 51\" stroke=\"#2B1838\" stroke-width=\"2\"/><g transform=\"rotate(12 36 14)\"><rect x=\"27\" y=\"9\" width=\"18\" height=\"10\" rx=\"2\" fill=\"#D9443A\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><rect x=\"27\" y=\"15\" width=\"18\" height=\"3\" fill=\"#E0A93B\"/><circle cx=\"36\" cy=\"8\" r=\"2\" fill=\"#E0A93B\"/></g></svg>", "vlad": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\" width=\"192\" height=\"192\"><path d=\"M6 60 L14 40 L22 48 L32 44 L42 48 L50 40 L58 60Z\" fill=\"#7A2E8C\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><path d=\"M14 40 L22 48 L18 56Z M50 40 L42 48 L46 56Z\" fill=\"#C0392B\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><ellipse cx=\"32\" cy=\"32\" rx=\"16\" ry=\"18\" fill=\"#DCD3F0\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><path d=\"M16 28 C16 16 24 13 32 13 C40 13 48 16 48 28 C44 22 38 22 32 28 C26 22 20 22 16 28Z\" fill=\"#2B1838\"/><circle cx=\"26\" cy=\"32\" r=\"4.5\" fill=\"#fff\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><circle cx=\"27\" cy=\"33\" r=\"2.25\" fill=\"#2B1838\"/><circle cx=\"28\" cy=\"31\" r=\"0.8099999999999999\" fill=\"#fff\"/><circle cx=\"38\" cy=\"32\" r=\"4.5\" fill=\"#fff\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><circle cx=\"39\" cy=\"33\" r=\"2.25\" fill=\"#2B1838\"/><circle cx=\"40\" cy=\"31\" r=\"0.8099999999999999\" fill=\"#fff\"/><path d=\"M26 41 Q32 45 38 41\" fill=\"none\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><path d=\"M28 42 L29.5 46 L31 42.5Z M33 42.5 L34.5 46 L36 42Z\" fill=\"#fff\" stroke=\"#2B1838\" stroke-width=\"1\"/><g transform=\"rotate(-6 32 12)\"><rect x=\"23\" y=\"7\" width=\"18\" height=\"10\" rx=\"2\" fill=\"#D9443A\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><rect x=\"23\" y=\"13\" width=\"18\" height=\"3\" fill=\"#E0A93B\"/><circle cx=\"32\" cy=\"6\" r=\"2\" fill=\"#E0A93B\"/></g></svg>", "donut": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\" width=\"192\" height=\"192\"><circle cx=\"32\" cy=\"34\" r=\"22\" fill=\"#E8B26A\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><path d=\"M14 31 C16 18 26 13 32 13 C44 13 52 22 50 33 C48 38 45 34 42 38 C39 42 35 37 31 40 C27 42 24 37 20 39 C16 40 14 36 14 31Z\" fill=\"#F07AA8\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><circle cx=\"32\" cy=\"31\" r=\"6\" fill=\"#2B1838\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><path d=\"M22 22 L25 24 M40 20 L42 23 M44 30 L47 29 M20 31 L22 34 M33 19 L36 18\" stroke=\"#fff\" stroke-width=\"2.5\" stroke-linecap=\"round\"/><path d=\"M27 25 L29 23 M38 27 L41 27\" stroke=\"#7FE0B0\" stroke-width=\"2.5\" stroke-linecap=\"round\"/></svg>", "pizza": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\" width=\"192\" height=\"192\"><path d=\"M10 14 Q32 6 54 14 L32 58Z\" fill=\"#F5C842\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><path d=\"M10 14 Q32 6 54 14 L52 19 Q32 11 12 19Z\" fill=\"#D98B3A\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><circle cx=\"26\" cy=\"26\" r=\"4.5\" fill=\"#D9443A\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><circle cx=\"39\" cy=\"28\" r=\"4.5\" fill=\"#D9443A\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><circle cx=\"32\" cy=\"40\" r=\"4\" fill=\"#D9443A\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/></svg>", "bag": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\" width=\"192\" height=\"192\"><path d=\"M24 20 L24 13 Q24 10 27 10 L37 10 Q40 10 40 13 L40 20\" fill=\"none\" stroke=\"#2B1838\" stroke-width=\"4\" stroke-linecap=\"round\"/><rect x=\"8\" y=\"19\" width=\"48\" height=\"36\" rx=\"5\" fill=\"#B5652E\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><path d=\"M20 19 L20 55 M44 19 L44 55\" stroke=\"#7A3E18\" stroke-width=\"3\"/><rect x=\"27\" y=\"30\" width=\"12\" height=\"9\" rx=\"2\" fill=\"#7FE0B0\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><path d=\"M30 34 L36 34\" stroke=\"#2B1838\" stroke-width=\"2\"/><path d=\"M8 25 L14 19 M56 25 L50 19 M8 49 L14 55 M56 49 L50 55\" stroke=\"#E0A93B\" stroke-width=\"3\"/></svg>", "key": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\" width=\"192\" height=\"192\"><path d=\"M37 30 L52 46 M45 39 L49 35 M49 43 L53 39\" fill=\"none\" stroke=\"#E0A93B\" stroke-width=\"6\" stroke-linecap=\"round\"/><path d=\"M37 30 L52 46 M45 39 L49 35 M49 43 L53 39\" fill=\"none\" stroke=\"#2B1838\" stroke-width=\"1.5\" stroke-linecap=\"round\" opacity=\".4\"/><circle cx=\"28\" cy=\"22\" r=\"11\" fill=\"#E0A93B\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><circle cx=\"28\" cy=\"22\" r=\"4\" fill=\"#2B1838\"/><path d=\"M10 40 L20 32 L28 42 L18 50Z\" fill=\"#D9443A\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><text x=\"19\" y=\"44.5\" font-size=\"8\" font-family=\"Arial\" font-weight=\"bold\" fill=\"#fff\" text-anchor=\"middle\" transform=\"rotate(-38 19 41)\">13</text><path d=\"M21 30 L25 33\" stroke=\"#2B1838\" stroke-width=\"2\"/></svg>", "cupcake": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\" width=\"192\" height=\"192\"><path d=\"M14 34 L50 34 L44 58 L20 58Z\" fill=\"#7FB8E8\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><path d=\"M22 36 L25 56 M32 36 L32 56 M42 36 L39 56\" stroke=\"#4F86B8\" stroke-width=\"2.5\"/><path d=\"M12 36 C8 30 14 24 20 25 C20 18 28 14 34 17 C40 13 50 18 48 26 C54 27 56 34 52 37 Z\" fill=\"#FBD3E4\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><circle cx=\"34\" cy=\"11\" r=\"5\" fill=\"#D9443A\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><path d=\"M34 6 Q37 2 41 3\" fill=\"none\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/></svg>", "cookie": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\" width=\"192\" height=\"192\"><path d=\"M32 10 C46 10 55 20 54 33 C53 47 44 55 31 54 C18 53 9 44 10 31 C11 18 20 10 32 10Z\" fill=\"#D9A15A\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><circle cx=\"24\" cy=\"22\" r=\"3.5\" fill=\"#5A3418\"/><circle cx=\"38\" cy=\"20\" r=\"3\" fill=\"#5A3418\"/><circle cx=\"44\" cy=\"33\" r=\"3.5\" fill=\"#5A3418\"/><circle cx=\"30\" cy=\"34\" r=\"3\" fill=\"#5A3418\"/><circle cx=\"20\" cy=\"40\" r=\"3\" fill=\"#5A3418\"/><circle cx=\"36\" cy=\"45\" r=\"3.5\" fill=\"#5A3418\"/><circle cx=\"26\" cy=\"47\" r=\"2.2\" fill=\"#5A3418\"/><path d=\"M18 20 Q22 16 27 15\" fill=\"none\" stroke=\"#F0C98C\" stroke-width=\"2.5\" stroke-linecap=\"round\"/></svg>", "garlic": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\" width=\"192\" height=\"192\"><path d=\"M32 14 C30 20 22 24 16 32 C9 42 16 56 32 56 C48 56 55 42 48 32 C42 24 34 20 32 14Z\" fill=\"#F4F0E6\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><path d=\"M32 18 C26 28 24 44 30 56 M32 18 C38 28 40 44 34 56\" fill=\"none\" stroke=\"#C8BFA8\" stroke-width=\"2.5\"/><path d=\"M32 14 L32 6 M32 8 L28 4 M32 8 L36 4\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><path d=\"M10 22 Q7 18 10 14 Q13 10 10 6 M54 22 Q57 18 54 14 Q51 10 54 6\" fill=\"none\" stroke=\"#9CCB5A\" stroke-width=\"2.5\" stroke-linecap=\"round\"/></svg>", "clock": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\" width=\"192\" height=\"192\"><path d=\"M18 50 L13 58 M46 50 L51 58\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><path d=\"M8 20 A9 9 0 0 1 22 9Z M56 20 A9 9 0 0 0 42 9Z\" fill=\"#E0A93B\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><circle cx=\"32\" cy=\"34\" r=\"21\" fill=\"#D9443A\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><circle cx=\"32\" cy=\"34\" r=\"15\" fill=\"#F6E7C8\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><path d=\"M32 34 L32 24 M32 34 L39 38\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><path d=\"M30 10 L34 10 M32 10 L32 13\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><path d=\"M3 34 L7 34 M57 34 L61 34 M5 44 L9 42 M59 44 L55 42\" stroke=\"#FF7070\" stroke-width=\"2.5\" stroke-linecap=\"round\"/></svg>", "mop": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\" width=\"192\" height=\"192\"><path d=\"M48 6 L28 40\" stroke=\"#2B1838\" stroke-width=\"8\" stroke-linecap=\"round\"/><path d=\"M48 6 L28 40\" stroke=\"#B5652E\" stroke-width=\"4\" stroke-linecap=\"round\"/><rect x=\"18\" y=\"36\" width=\"20\" height=\"8\" rx=\"2\" fill=\"#7FB8E8\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\" transform=\"rotate(30 28 40)\"/><path d=\"M18 44 Q12 52 10 58 M22 46 Q18 54 18 60 M27 47 Q26 54 28 60 M32 46 Q34 52 38 57\" fill=\"none\" stroke=\"#2B1838\" stroke-width=\"7\" stroke-linecap=\"round\"/><path d=\"M18 44 Q12 52 10 58 M22 46 Q18 54 18 60 M27 47 Q26 54 28 60 M32 46 Q34 52 38 57\" fill=\"none\" stroke=\"#B9B4C4\" stroke-width=\"3.5\" stroke-linecap=\"round\"/><path d=\"M48 52 Q51 57 48 59 Q45 57 48 52Z\" fill=\"#7FB8E8\" stroke=\"#2B1838\" stroke-width=\"2\"/></svg>", "cloche": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\" width=\"192\" height=\"192\"><path d=\"M30 6 L31 9 L34 10 L31 11 L30 14 L29 11 L26 10 L29 9Z M54 14 L55 16 L57 17 L55 18 L54 20 L53 18 L51 17 L53 16Z\" fill=\"#FFF3B0\"/><path d=\"M10 44 C10 28 20 20 32 20 C44 20 54 28 54 44Z\" fill=\"#FFD54A\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><path d=\"M17 38 C18 31 22 27 28 25\" fill=\"none\" stroke=\"#FFF3B0\" stroke-width=\"3.5\" stroke-linecap=\"round\"/><circle cx=\"32\" cy=\"17\" r=\"4\" fill=\"#FFD54A\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><rect x=\"5\" y=\"44\" width=\"54\" height=\"7\" rx=\"3\" fill=\"#E0A93B\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><path d=\"M8 6 L9 9 L12 10 L9 11 L8 14 L7 11 L4 10 L7 9Z\" fill=\"#FFF3B0\"/></svg>", "magnet": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\" width=\"192\" height=\"192\"><path d=\"M14 10 L14 34 C14 46 22 54 32 54 C42 54 50 46 50 34 L50 10 L38 10 L38 34 C38 38 35 41 32 41 C29 41 26 38 26 34 L26 10Z\" fill=\"#D9443A\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><rect x=\"14\" y=\"10\" width=\"12\" height=\"10\" fill=\"#E6E2EE\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><rect x=\"38\" y=\"10\" width=\"12\" height=\"10\" fill=\"#E6E2EE\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><path d=\"M19 34 C19 42 23 47 29 49\" fill=\"none\" stroke=\"#F28A80\" stroke-width=\"3\" stroke-linecap=\"round\"/></svg>", "hourglass": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\" width=\"192\" height=\"192\"><path d=\"M18 12 L46 12 C46 24 36 28 36 32 C36 36 46 40 46 52 L18 52 C18 40 28 36 28 32 C28 28 18 24 18 12Z\" fill=\"#CFE6FA\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><path d=\"M22 18 L42 18 C40 24 34 26 32 29 C30 26 24 24 22 18Z M21 50 C22 44 28 42 32 40 C36 42 42 44 43 50Z\" fill=\"#E0A93B\"/><path d=\"M32 30 L32 40\" stroke=\"#E0A93B\" stroke-width=\"2\"/><rect x=\"12\" y=\"6\" width=\"40\" height=\"7\" rx=\"3\" fill=\"#B5652E\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><rect x=\"12\" y=\"51\" width=\"40\" height=\"7\" rx=\"3\" fill=\"#B5652E\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/></svg>", "heart": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\" width=\"192\" height=\"192\"><path d=\"M32 56 C20 46 8 38 8 24 C8 15 14 9 21 9 C26 9 30 12 32 16 C34 12 38 9 43 9 C50 9 56 15 56 24 C56 38 44 46 32 56Z\" fill=\"#E2574C\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><path d=\"M16 20 C17 16 20 14 23 14\" fill=\"none\" stroke=\"#F5A3A0\" stroke-width=\"3.5\" stroke-linecap=\"round\"/></svg>", "heartEmpty": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\" width=\"192\" height=\"192\"><path d=\"M32 56 C20 46 8 38 8 24 C8 15 14 9 21 9 C26 9 30 12 32 16 C34 12 38 9 43 9 C50 9 56 15 56 24 C56 38 44 46 32 56Z\" fill=\"#4A3358\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/></svg>", "coin": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\" width=\"192\" height=\"192\"><circle cx=\"32\" cy=\"32\" r=\"24\" fill=\"#FFD54A\" stroke=\"#2B1838\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><circle cx=\"32\" cy=\"32\" r=\"17\" fill=\"none\" stroke=\"#E0A93B\" stroke-width=\"3\"/><path d=\"M32 21 L35 29 L43 29 L37 34 L39 42 L32 37 L25 42 L27 34 L21 29 L29 29Z\" fill=\"#E0A93B\"/></svg>"};
+const SRC = {}, PIC = {};
+for (const k in ART) {
+  SRC[k] = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(ART[k]);
+  const im = new Image();
+  im.onload = () => { const c = document.createElement("canvas"); c.width = c.height = 192;
+    c.getContext("2d").drawImage(im, 0, 0, 192, 192); PIC[k] = c; };
+  im.src = SRC[k];
+}
+const icon = (k, cls="ico") => '<img class="' + cls + '" src="' + SRC[k] + '" alt="">';
+
+// ---- Saved data (on this device) ----
+function load(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch(e) { return d; } }
+function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e) {} }
+let best = load("rs_best", 0);
+let bank = load("rs_bank", 0);     // total coins to spend in the shop
+let up = Object.assign({ tray:0, magnet:0, heart:0 }, load("rs_up", {}));
+let owned = load("rs_skins", ["gloop"]).filter(k => SKINS.some(x => x.e === k));
+if (!owned.includes("gloop")) owned.unshift("gloop");
+let skin = load("rs_skin", "gloop"); if (!owned.includes(skin)) skin = "gloop";
+const maxHearts = () => START_HEARTS + up.heart;
+const magnetMax = () => MAGNET_TIME + up.magnet * 1.5;
+const reach = () => 48 + up.tray * 10;       // how far sideways you can catch
+const trayW = () => 84 + up.tray * 20;
+$("legend").innerHTML =
+  '<div class="row catch"><span class="lbl">Catch</span>' + GOOD.map(k => icon(k, "")).join("") + '</div>' +
+  '<div class="row avoid"><span class="lbl">Avoid</span>' + BAD.map(k => icon(k, "")).join("") + '</div>' +
+  '<div class="row bonus"><span class="lbl">Bonus</span>' + [GOLD, MAGNET, SLOW].map(k => icon(k, "")).join("") + '</div>';
+let hintShown = load("rs_hint", false);
+function showStats() {
+  const parts = [];
+  if (best > 0) parts.push("Best " + icon("coin") + " " + best);
+  if (bank > 0) parts.push("Bank " + icon("coin") + " " + bank);
+  statsEl.innerHTML = parts.join("&nbsp;&nbsp;&nbsp;");
+}
+showStats();
+
+// ---- Screen size ----
+let W, H;
+function resize() {
+  const s = window.devicePixelRatio || 1;
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width = W * s; canvas.height = H * s;
+  ctx.setTransform(s,0,0,s,0,0);
+}
+window.addEventListener("resize", resize); resize();
+
+// ---- Sound (made in code, no files needed) ----
+let audio = null, musicBus = null, noiseBuf = null;
+let soundOn = load("rs_sound", true), musicOn = load("rs_music", true);
+const MUSIC_VOLUME = 0.55;   // 0 to 1
+function initAudio() {
+  if (!audio) {
+    try {
+      audio = new (window.AudioContext || window.webkitAudioContext)();
+      musicBus = audio.createGain(); musicBus.gain.value = musicOn ? MUSIC_VOLUME : 0;
+      musicBus.connect(audio.destination);
+      noiseBuf = audio.createBuffer(1, audio.sampleRate * 0.2, audio.sampleRate);
+      const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    } catch(e) {}
+  }
+  if (audio && audio.state === "suspended") audio.resume();
+}
+function tone(freq, dur, type="sine", vol=0.15, slideTo=null) {
+  if (!audio || !soundOn) return;
+  const t = audio.currentTime, o = audio.createOscillator(), g = audio.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t);
+  if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  o.connect(g).connect(audio.destination); o.start(t); o.stop(t + dur);
+}
+const sfx = {
+  catch: n => tone(523 * Math.pow(2, Math.min(n, 14) / 12), 0.12, "triangle", 0.18),
+  levelUp: () => { tone(660,0.1,"square",0.08); setTimeout(()=>tone(990,0.15,"square",0.08),90); },
+  gold: () => [784,988,1175,1568].forEach((f,i) => setTimeout(()=>tone(f,0.15,"triangle",0.15), i*70)),
+  power: () => tone(300, 0.3, "sine", 0.18, 900),
+  hit: () => tone(180, 0.25, "square", 0.15, 60),
+  miss: () => tone(220, 0.15, "triangle", 0.08, 120),
+  over: () => { tone(400,0.2,"sawtooth",0.1,300); setTimeout(()=>tone(300,0.35,"sawtooth",0.1,120),180); }
+};
+// ---- Background music: "spooky fun" skeleton-xylophone loop, made in code ----
+// 8 bars, 8 steps per bar. Numbers are piano keys (60 = middle C). null = rest.
+// Chords: Am - Am - Dm - Dm - F - E - Am - E
+const ROOTS = [45, 45, 50, 50, 41, 40, 45, 40];
+const CHORDS = [[57,60,64],[57,60,64],[57,62,65],[57,62,65],[57,60,65],[56,59,64],[57,60,64],[56,59,64]];
+const _ = null;
+const MELODY = [
+  [69,_,72,_,76,75,76,_], [72,_,69,_,_,_,64,_], [74,_,77,_,81,80,81,_], [77,_,74,_,_,_,_,_],
+  [77,76,77,_,81,_,77,_], [76,75,76,_,80,_,76,_], [72,71,72,_,76,_,69,_], [68,_,71,_,74,_,76,_]
+];
+let musicStep = 0, nextNote = 0, musicTimer = null, musicPaused = false;
+const hz = m => 440 * Math.pow(2, (m - 69) / 12);
+function note(m, t, dur, type, vol) {
+  const o = audio.createOscillator(), g = audio.createGain();
+  o.type = type; o.frequency.value = hz(m);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.008);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(musicBus); o.start(t); o.stop(t + dur + 0.02);
+}
+function xylo(m, t) {                 // bony, knocky xylophone
+  note(m, t, 0.22, "triangle", 0.09);
+  note(m + 12, t, 0.06, "sine", 0.04);
+  note(m + 24, t, 0.03, "sine", 0.02);
+}
+function theremin(t) {                // the "woooo" ghost swoop
+  const o = audio.createOscillator(), lfo = audio.createOscillator(), depth = audio.createGain(), g = audio.createGain();
+  o.type = "sine"; o.frequency.setValueAtTime(hz(69), t);
+  o.frequency.exponentialRampToValueAtTime(hz(81), t + 0.35);
+  o.frequency.exponentialRampToValueAtTime(hz(72), t + 0.9);
+  lfo.frequency.value = 6; depth.gain.value = 9; lfo.connect(depth).connect(o.frequency);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.06, t + 0.15);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.95);
+  o.connect(g).connect(musicBus); o.start(t); lfo.start(t); o.stop(t + 1); lfo.stop(t + 1);
+}
+function noise(t, type, freq, vol, dur) {
+  const n = audio.createBufferSource(), f = audio.createBiquadFilter(), g = audio.createGain();
+  n.buffer = noiseBuf; f.type = type; f.frequency.value = freq;
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  n.connect(f).connect(g).connect(musicBus); n.start(t); n.stop(t + dur + 0.02);
+}
+function kick(t) {
+  const o = audio.createOscillator(), g = audio.createGain();
+  o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+  g.gain.setValueAtTime(0.3, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.15);
+  o.connect(g).connect(musicBus); o.start(t); o.stop(t + 0.17);
+}
+function playStep(s, t) {
+  const bar = Math.floor(s / 8), e = s % 8, r = ROOTS[bar];
+  if (e % 2 === 0) note(e % 4 === 0 ? r : r + 7, t, 0.16, "triangle", 0.24);     // tuba-style "oom"
+  if (e % 2 === 1) CHORDS[bar].forEach(m => note(m, t, 0.08, "square", 0.012));  // "pah" chords
+  if (e === 0 || e === 4) kick(t);
+  if (e === 2 || e === 6) noise(t, "highpass", 2500, 0.12, 0.05);                // finger snap
+  const m = MELODY[bar][e]; if (m) xylo(m, t);
+  if (bar === 3 && e === 4) theremin(t);
+}
+function stepLen() {
+  // music speeds up a little with each rush hour
+  const bpm = running ? Math.min(156, 124 + Math.floor(elapsed / RAMP_EVERY) * 6) : 116;
+  return 60 / bpm / 2;
+}
+function scheduler() {
+  if (!audio || musicPaused || audio.state !== "running") return;
+  if (nextNote < audio.currentTime - 0.2) nextNote = audio.currentTime + 0.05;
+  while (nextNote < audio.currentTime + 0.12) {
+    playStep(musicStep, nextNote); nextNote += stepLen(); musicStep = (musicStep + 1) % 64;
+  }
+}
+function startMusic() {
+  musicPaused = false;
+  if (!audio || musicTimer) return;
+  nextNote = audio.currentTime + 0.1; musicTimer = setInterval(scheduler, 25);
+}
+
+// ---- Sound and music buttons ----
+function paintToggles() {
+  soundBtn.classList.toggle("off", !soundOn); musicBtn.classList.toggle("off", !musicOn);
+  soundBtn.setAttribute("aria-pressed", soundOn); musicBtn.setAttribute("aria-pressed", musicOn);
+}
+soundBtn.addEventListener("click", () => { soundOn = !soundOn; save("rs_sound", soundOn); paintToggles(); initAudio(); sfx.catch(4); });
+musicBtn.addEventListener("click", () => {
+  musicOn = !musicOn; save("rs_music", musicOn); paintToggles(); initAudio();
+  if (musicBus) musicBus.gain.setTargetAtTime(musicOn ? MUSIC_VOLUME : 0, audio.currentTime, 0.05);
+  startMusic();
+});
+paintToggles();
+
+// ---- Game state ----
+let player, items, particles, popups, splats;
+let hearts, coins, combo, speed, spawnGap, spawnTimer, elapsed;
+let shake, flash, invuln, multPulse, magnetT, slowT, clock = 0, running = false, lastTime;
+
+const mult = () => Math.min(MAX_MULT, 1 + Math.floor(combo / COMBO_STEP));
+
+function reset() {
+  player = { x:W/2, y:H-110, targetX:W/2, vx:0, squash:0 };
+  items = []; particles = []; popups = []; splats = [];
+  hearts = maxHearts(); coins = 0; combo = 0;
+  speed = START_SPEED; spawnGap = START_SPAWN; spawnTimer = 0; elapsed = 0;
+  shake = 0; flash = 0; invuln = 0; multPulse = 0; magnetT = 0; slowT = 0;
+  updateHud();
+}
+function updateHud() {
+  heartsEl.innerHTML = icon("heart").repeat(Math.max(0,hearts)) + icon("heartEmpty").repeat(Math.max(0, maxHearts() - hearts));
+  coinsEl.innerHTML = icon("coin") + " " + coins;
+}
+
+function spawn() {
+  const r = Math.random();
+  let kind, emoji, vyMul = 1;
+  if (r < GOLD_CHANCE) { kind = "gold"; emoji = GOLD; vyMul = 1.6; }
+  else if (elapsed > 8 && r < GOLD_CHANCE + POWER_CHANCE) {
+    kind = Math.random() < 0.5 ? "magnet" : "slow"; emoji = kind === "magnet" ? MAGNET : SLOW;
+  } else {
+    const isBad = Math.random() < Math.min(0.25 + elapsed / 200, 0.5);
+    kind = isBad ? "bad" : "good";
+    const list = isBad ? BAD : GOOD;
+    emoji = list[Math.floor(Math.random() * list.length)];
+  }
+  items.push({
+    x: 30 + Math.random() * (W - 60), y: -40, emoji, kind,
+    vy: speed * (0.85 + Math.random() * 0.3) * vyMul,
+    rot: Math.random() * 6, spin: (Math.random() - 0.5) * 4
+  });
+}
+
+function burst(x, y, color, n) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, sp = 80 + Math.random() * 220;
+    particles.push({ x, y, vx: Math.cos(a)*sp, vy: Math.sin(a)*sp - 120, life: 0.6, color });
+  }
+}
+function popup(x, y, text, color, size=26) { popups.push({ x, y, text, color, size, life: 0.9 }); }
+
+// ---- Controls ----
+canvas.addEventListener("pointerdown", e => player.targetX = e.clientX);
+canvas.addEventListener("pointermove", e => player.targetX = e.clientX);
+const keys = {};
+window.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
+window.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
+
+// ---- CrazyGames SDK (ads + gameplay events) ----
+// Ads only run on CrazyGames, or in test mode (add ?useLocalSdk=true to the address).
+let SDK = null;
+const adsOn = () => !!SDK;
+(async () => {
+  try {
+    if (window.CrazyGames && window.CrazyGames.SDK) {
+      await window.CrazyGames.SDK.init();
+      const env = window.CrazyGames.SDK.environment;
+      if (env === "crazygames" || env === "local") SDK = window.CrazyGames.SDK;
+    }
+  } catch (e) { SDK = null; }
+  sdkCall(() => SDK.game.loadingStop());
+})();
+function sdkCall(fn) { if (!SDK) return; try { fn(); } catch (e) {} }
+let adPlaying = false;
+function showAd(type, onDone, onFail) {
+  if (!SDK || adPlaying) { if (onFail) onFail(); return; }
+  adPlaying = true;
+  const finish = ok => {
+    adPlaying = false;
+    if (audio && !document.hidden) audio.resume();      // sound back on
+    if (ok) { if (onDone) onDone(); } else if (onFail) onFail();
+  };
+  try {
+    SDK.ad.requestAd(type, {
+      adStarted: () => { if (audio) audio.suspend(); },  // silence during the ad
+      adFinished: () => finish(true),
+      adError: () => finish(false)
+    });
+  } catch (e) { finish(false); }
+}
+
+// ---- Pause ----
+function pauseGame() {
+  if (!running) return;
+  running = false; musicPaused = true; pauseBtn.classList.add("hidden"); sdkCall(() => SDK.game.gameplayStop());
+  $("legend").classList.add("hidden"); hideAdBtns();
+  titleEl.textContent = "Paused"; msgEl.textContent = "Your run is waiting."; statsEl.textContent = "";
+  playBtn.textContent = "Resume"; playBtn.dataset.resume = "1"; shopBtn.classList.add("hidden");
+  overlay.classList.remove("hidden");
+}
+pauseBtn.addEventListener("click", pauseGame);
+window.addEventListener("keydown", e => {
+  const k = e.key.toLowerCase();
+  if ((k === "p" || k === "escape") && running) pauseGame();
+});
+// Pause and go silent when the player switches tabs or apps
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) { pauseGame(); if (audio) audio.suspend(); }
+  else if (audio && !adPlaying) audio.resume();
+});
+
+// Desktop players get a keyboard tip
+if (window.matchMedia && matchMedia("(pointer: fine)").matches)
+  msgEl.textContent = "Move with the mouse or arrow keys. Catch orders in a row to build a combo. Press P to pause.";
+
+// ---- Update ----
+function update(dt) {
+  elapsed += dt; clock += dt;
+  if (Math.floor(elapsed / RAMP_EVERY) > Math.floor((elapsed - dt) / RAMP_EVERY)) {
+    speed *= 1.15; spawnGap = Math.max(0.32, spawnGap * 0.88);
+    popup(W/2, H*0.4, "Rush hour!", "#7FE0B0", 34);
+  }
+
+  if (keys["arrowleft"] || keys["a"]) player.targetX -= 650 * dt;
+  if (keys["arrowright"] || keys["d"]) player.targetX += 650 * dt;
+  player.targetX = Math.max(30, Math.min(W - 30, player.targetX));
+  const oldX = player.x;
+  player.x += (player.targetX - player.x) * Math.min(1, dt * 18);
+  player.vx = (player.x - oldX) / dt;
+  player.squash = Math.max(0, player.squash - dt * 5);
+
+  shake = Math.max(0, shake - dt * 30);
+  flash = Math.max(0, flash - dt * 2.5);
+  invuln = Math.max(0, invuln - dt);
+  multPulse = Math.max(0, multPulse - dt * 3);
+  magnetT = Math.max(0, magnetT - dt);
+  slowT = Math.max(0, slowT - dt);
+
+  const idt = slowT > 0 ? dt * 0.5 : dt;   // falling things slow down in Slow-Mo
+  spawnTimer -= idt;
+  if (spawnTimer <= 0) { spawn(); spawnTimer = spawnGap; }
+
+  for (let i = items.length - 1; i >= 0; i--) {
+    const it = items[i];
+    it.y += it.vy * idt; it.rot += it.spin * idt;
+    const good = it.kind === "good" || it.kind === "gold";
+    if (magnetT > 0 && good && it.y < player.y) it.x += (player.x - it.x) * Math.min(1, dt * 4);
+
+    const caught = Math.abs(it.x - player.x) < reach() && Math.abs(it.y - player.y) < 40;
+    if (caught && it.kind === "bad" && invuln > 0) continue;   // flickering = safe
+    if (caught) {
+      items.splice(i, 1);
+      if (it.kind === "bad") {
+        hearts--; combo = 0; shake = 14; flash = 0.6; invuln = 1;
+        burst(it.x, it.y, "#E04848", 14); popup(it.x, it.y - 30, "Ouch!", "#FF7070", 30);
+        if (!hintShown) { hintShown = true; save("rs_hint", true);
+          popups.push({ x: W/2, y: H*0.45, text: "Avoid the red-glow items!", color: "#FF7070", size: 32, life: 2.5 }); }
+        sfx.hit(); navigator.vibrate?.(80);
+        updateHud();
+        if (hearts <= 0) return gameOver();
+      } else if (it.kind === "magnet") {
+        magnetT = magnetMax(); burst(it.x, it.y, "#7FE0B0", 12);
+        popup(it.x, it.y - 30, "Magnet!", "#7FE0B0", 30); sfx.power();
+      } else if (it.kind === "slow") {
+        slowT = SLOW_TIME; burst(it.x, it.y, "#8FB8FF", 12);
+        popup(it.x, it.y - 30, "Slow-mo!", "#8FB8FF", 30); sfx.power();
+      } else {
+        const before = mult();
+        combo++;
+        const m = mult(), gain = m * (it.kind === "gold" ? GOLD_VALUE : 1);
+        coins += gain; player.squash = 1;
+        if (it.kind === "gold") {
+          burst(it.x, it.y, "#FFD54A", 30); shake = 6;
+          popup(it.x, it.y - 40, "Golden tip! +" + gain, "#FFD54A", 34); sfx.gold();
+        } else {
+          burst(it.x, it.y, "#E0A93B", 8); popup(it.x, it.y - 30, "+" + gain, "#F6E7C8"); sfx.catch(combo);
+        }
+        if (m > before) { multPulse = 1; sfx.levelUp(); }
+        updateHud();
+      }
+    } else if (it.y > H - 70) {
+      items.splice(i, 1);
+      if (good) {
+        splats.push({ x: it.x, emoji: it.emoji, life: 1.2 });
+        if (combo >= COMBO_STEP) popup(it.x, H - 100, "Combo lost", "#FF9A70", 22);
+        combo = 0; sfx.miss();
+      }
+    }
+  }
+
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 600 * dt; p.life -= dt;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+  for (let i = popups.length - 1; i >= 0; i--) {
+    const p = popups[i]; p.y -= 60 * dt; p.life -= dt;
+    if (p.life <= 0) popups.splice(i, 1);
+  }
+  for (let i = splats.length - 1; i >= 0; i--) {
+    splats[i].life -= dt; if (splats[i].life <= 0) splats.splice(i, 1);
+  }
+}
+
+// ---- Draw ----
+function drawBackground() {
+  ctx.fillStyle = "#2B1838"; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = "#351E45"; for (let x = 0; x < W; x += 56) ctx.fillRect(x, 0, 28, H);
+  ctx.fillStyle = "#4A2A2A"; ctx.fillRect(0, H - 60, W, 60);
+  ctx.fillStyle = "#E0A93B"; ctx.fillRect(0, H - 62, W, 4);
+}
+function emoji(k, x, y, size, rot=0, sx=1, sy=1, alpha=1) {
+  const pic = PIC[k]; if (!pic) return;
+  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y); ctx.rotate(rot); ctx.scale(sx, sy);
+  ctx.drawImage(pic, -size/2, -size/2, size, size); ctx.restore();
+}
+function glow(x, y, r, color) {
+  const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+  g.addColorStop(0, color); g.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+}
+function timerBar(icon, t, max, color, y) {
+  if (PIC[icon]) ctx.drawImage(PIC[icon], 14, y - 14, 28, 28); ctx.textAlign = "left";
+  ctx.fillStyle = "rgba(0,0,0,.35)"; ctx.fillRect(48, y - 6, 110, 12);
+  ctx.fillStyle = color; ctx.fillRect(48, y - 6, 110 * (t / max), 12);
+  ctx.textAlign = "center";
+}
+
+function draw() {
+  ctx.save();
+  if (shake > 0) ctx.translate((Math.random()-0.5)*shake, (Math.random()-0.5)*shake);
+  drawBackground();
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+
+  for (const s of splats) emoji(s.emoji, s.x, H - 50, 34, 0, 1.4, 0.5, Math.min(1, s.life));
+  for (const it of items) {
+    if (it.kind === "gold") glow(it.x, it.y, 40 + Math.sin(clock * 10) * 8, "rgba(255,213,74,.8)");
+    if (it.kind === "bad") glow(it.x, it.y, 34, "rgba(224,72,72,.45)");
+    if (it.kind === "magnet" || it.kind === "slow") glow(it.x, it.y, 36, "rgba(127,224,176,.6)");
+    emoji(it.emoji, it.x, it.y, it.kind === "gold" ? 58 : 52, Math.sin(it.rot) * 0.4);
+  }
+
+  // Player: lean with movement, squish on catch, flicker when hit
+  const show = invuln <= 0 || Math.floor(invuln * 12) % 2 === 0;
+  if (show) {
+    if (magnetT > 0) glow(player.x, player.y, 70, "rgba(127,224,176,.35)");
+    const lean = Math.max(-0.3, Math.min(0.3, player.vx / 2500));
+    const sx = 1 + 0.25 * player.squash, sy = 1 - 0.2 * player.squash;
+    ctx.save(); ctx.translate(player.x, player.y + 30); ctx.rotate(lean); ctx.scale(sx, sy);
+    const tw = trayW();
+    ctx.fillStyle = "#E0A93B"; ctx.fillRect(-tw/2, -70, tw, 8);   // tray
+    if (PIC[skin]) ctx.drawImage(PIC[skin], -38, -64, 76, 76);
+    ctx.restore();
+  }
+
+  for (const p of particles) {
+    ctx.globalAlpha = Math.max(0, p.life / 0.6); ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  for (const p of popups) {
+    ctx.globalAlpha = Math.min(1, p.life * 2); ctx.fillStyle = p.color;
+    ctx.font = "700 " + p.size + "px Fredoka, sans-serif"; ctx.fillText(p.text, p.x, p.y);
+  }
+  ctx.globalAlpha = 1;
+
+  // Power-up timers
+  let ty = 80;
+  if (magnetT > 0) { timerBar(MAGNET, magnetT, magnetMax(), "#7FE0B0", ty); ty += 32; }
+  if (slowT > 0) { timerBar(SLOW, slowT, SLOW_TIME, "#8FB8FF", ty); }
+
+  // Combo multiplier
+  const m = mult();
+  if (m > 1) {
+    const size = 48 + multPulse * 30;
+    ctx.fillStyle = "#E0A93B"; ctx.font = "700 " + size + "px Fredoka, sans-serif";
+    ctx.fillText("×" + m, W / 2, 130);
+    ctx.font = "500 16px Fredoka, sans-serif"; ctx.fillStyle = "#F6E7C8";
+    ctx.fillText("combo " + combo, W / 2, 170);
+  }
+  ctx.restore();
+
+  if (slowT > 0) { ctx.fillStyle = "rgba(120,160,255,.12)"; ctx.fillRect(0, 0, W, H); }
+  if (flash > 0) { ctx.fillStyle = "rgba(224,72,72," + flash * 0.35 + ")"; ctx.fillRect(0, 0, W, H); }
+}
+
+// ---- Loop ----
+function loop(t) {
+  if (!running) return;
+  const dt = Math.min(0.05, (t - lastTime) / 1000); lastTime = t;
+  update(dt);
+  if (running) draw();
+  requestAnimationFrame(loop);
+}
+function go() {
+  overlay.classList.add("hidden"); pauseBtn.classList.remove("hidden"); running = true;
+  sdkCall(() => SDK.game.gameplayStart());
+  startMusic(); lastTime = performance.now(); requestAnimationFrame(loop);
+}
+let banked = 0, revived = false, doubled = false, runsPlayed = 0;
+const reviveBtn = $("reviveBtn"), doubleBtn = $("doubleBtn");
+function hideAdBtns() { reviveBtn.classList.add("hidden"); doubleBtn.classList.add("hidden"); }
+function gameOver() {
+  running = false; pauseBtn.classList.add("hidden"); sfx.over(); draw();
+  sdkCall(() => SDK.game.gameplayStop());
+  const newBest = coins > best;
+  if (newBest) { best = coins; save("rs_best", best); }
+  bank += coins - banked; banked = coins; save("rs_bank", bank);   // only add coins not already banked
+  titleEl.textContent = newBest ? "New best!" : "Checked out!";
+  msgEl.textContent = "You earned " + coins + " coins in " + Math.floor(elapsed) + " seconds.";
+  showStats(); $("legend").classList.add("hidden");
+  // Rewarded ad offers
+  hideAdBtns();
+  if (adsOn()) {
+    if (!revived) reviveBtn.classList.remove("hidden");
+    if (!doubled && coins > 0) { $("doubleTxt").textContent = "Watch ad: +" + coins + " coins"; doubleBtn.classList.remove("hidden"); }
+  }
+  reviveBtn.disabled = doubleBtn.disabled = false;
+  playBtn.textContent = "Play again"; delete playBtn.dataset.resume; shopBtn.classList.remove("hidden");
+  setTimeout(() => overlay.classList.remove("hidden"), 600);
+}
+reviveBtn.addEventListener("click", () => {
+  initAudio(); reviveBtn.disabled = doubleBtn.disabled = true;
+  showAd("rewarded", () => {
+    revived = true; hideAdBtns();
+    hearts = 1; invuln = 2; combo = 0;
+    items = items.filter(it => it.kind !== "bad" && it.y < H * 0.4);   // clear danger so they get a fair restart
+    updateHud(); popup(W/2, H*0.45, "Back on duty!", "#7FE0B0", 34);
+    go();
+  }, () => { reviveBtn.disabled = doubleBtn.disabled = false; msgEl.textContent = "No ad available right now. Try again in a moment."; });
+});
+doubleBtn.addEventListener("click", () => {
+  initAudio(); reviveBtn.disabled = doubleBtn.disabled = true;
+  showAd("rewarded", () => {
+    doubled = true; hideAdBtns();
+    bank += coins; save("rs_bank", bank); sfx.gold();
+    msgEl.textContent = "Doubled! You earned " + (coins * 2) + " coins this run.";
+    showStats();
+  }, () => { reviveBtn.disabled = doubleBtn.disabled = false; msgEl.textContent = "No ad available right now. Try again in a moment."; });
+});
+function newRun() {
+  reset(); banked = 0; revived = false; doubled = false; runsPlayed++; hideAdBtns(); go();
+}
+playBtn.addEventListener("click", () => {
+  initAudio();
+  if (playBtn.dataset.resume) { delete playBtn.dataset.resume; go(); return; }
+  // A short ad between runs, every 3rd "Play again" (CrazyGames also limits how often these show)
+  if (runsPlayed > 0 && runsPlayed % 3 === 0 && adsOn()) {
+    playBtn.disabled = true;
+    showAd("midgame", () => { playBtn.disabled = false; newRun(); }, () => { playBtn.disabled = false; newRun(); });
+  } else newRun();
+});
+// ---- Shop ----
+function today() { const d = new Date(); return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate(); }
+function renderShop() {
+  $("shopBank").innerHTML = icon("coin") + " " + bank;
+  let h = '<div class="shopHead">Upgrades</div>';
+  for (const u of UPGRADES) {
+    const lvl = up[u.id], max = u.costs.length, cost = u.costs[lvl];
+    const pips = "●".repeat(lvl) + "○".repeat(max - lvl);
+    const btn = lvl >= max ? '<button disabled>Maxed</button>'
+      : '<button data-buy="' + u.id + '"' + (bank < cost ? " disabled" : "") + '>' + icon("coin") + " " + cost + '</button>';
+    h += '<div class="item"><div class="info"><div class="name">' + u.name + '</div><div class="pips">' + pips +
+         '</div><div class="desc">' + u.desc + '</div></div>' + btn + '</div>';
+  }
+  h += '<div class="shopHead">Monsters</div>';
+  if (adsOn()) {
+    const used = load("rs_spin", "") === today();
+    h += '<div class="item"><div class="info"><div class="name">Free monster spin</div><div class="desc">' +
+         (used ? "Come back tomorrow for another spin." : "Watch an ad to unlock a random monster.") + '</div></div>' +
+         '<button class="adSmall" data-spin="1"' + (used ? " disabled" : "") + '>' + (used ? "Used" : "Watch ad") + '</button></div>';
+  }
+  h += '<div class="skins">';
+  for (const k of SKINS) {
+    const has = owned.includes(k.e), on = skin === k.e;
+    const label = on ? "Using" : has ? "Use" : icon("coin") + " " + k.cost;
+    h += '<button class="skin' + (on ? " on" : "") + (has ? "" : " locked") + '" data-skin="' + k.e + '">' +
+         icon(k.e, "") + '<span class="n">' + k.name + '</span><span class="c">' + label + '</span></button>';
+  }
+  shopList.innerHTML = h + '</div>';
+}
+shopList.addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  initAudio();
+  if (b.dataset.spin) {
+    b.disabled = true;
+    showAd("rewarded", () => {
+      save("rs_spin", today());
+      const locked = SKINS.filter(k => !owned.includes(k.e));
+      if (locked.length) {
+        const k = locked[Math.floor(Math.random() * locked.length)];
+        owned.push(k.e); skin = k.e; save("rs_skins", owned); save("rs_skin", skin);
+        $("shopBank").innerHTML = icon("coin") + " " + bank;
+      } else { bank += 300; save("rs_bank", bank); }   // already own them all: 300 coins instead
+      sfx.gold(); renderShop(); showStats(); draw();
+    }, () => { b.disabled = false; });
+    return;
+  }
+  if (b.dataset.buy) {
+    const u = UPGRADES.find(x => x.id === b.dataset.buy), cost = u.costs[up[u.id]];
+    if (cost === undefined || bank < cost) return;
+    bank -= cost; up[u.id]++; save("rs_bank", bank); save("rs_up", up); sfx.power();
+  } else if (b.dataset.skin) {
+    const k = SKINS.find(x => x.e === b.dataset.skin);
+    if (!owned.includes(k.e)) {
+      if (bank < k.cost) { sfx.miss(); return; }
+      bank -= k.cost; owned.push(k.e); save("rs_bank", bank); save("rs_skins", owned); sfx.gold();
+    }
+    skin = k.e; save("rs_skin", skin);
+  }
+  renderShop(); showStats(); updateHud(); draw();
+});
+shopBtn.addEventListener("click", () => { renderShop(); shopEl.classList.remove("hidden"); });
+$("shopClose").addEventListener("click", () => { shopEl.classList.add("hidden"); updateHud(); draw(); });
+
+reset(); draw();
+setTimeout(() => { if (!running) draw(); updateHud(); }, 300);
+</script>
+</body>
+</html>
